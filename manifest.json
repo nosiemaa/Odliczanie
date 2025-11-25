@@ -7,8 +7,14 @@
   "theme_color": "#ff0044",
   "icons": [
     {
-      "src": "/ikona.png",
-      "sizes": "1024x1024",
+      "src": "/zegar-192.png",
+      "sizes": "192x192",
       "type": "image/png"
     },
     {
+      "src": "/zegar-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
