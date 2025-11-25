@@ -238,23 +238,80 @@
         setInterval(update, 1000);
     </script>
 </body>
-    <script>
-setInterval(() => {
-  const now = new Date();
-  if (now >= newYear && now < new Date(newYear.getTime() + 60000)) {
-    Notification.requestPermission().then(perm => {
-      if (perm === "granted") {
-          body: "Twoje odliczanie właśnie się skończyło!",
-          icon: "/zegar-192x192.png",
-          vibrate: [200, 100, 200]
-        });
-      }
+<!-- Powiadomienia lokalne i odliczanie -->
+<script>
+// Poproś użytkownika o zgodę na powiadomienia
+if ('Notification' in window) {
+  Notification.requestPermission();
+}
+
+// Funkcja do wyświetlania powiadomień
+function wyswietlPowiadomienie(tytul, tresc) {
+  if (Notification.permission === 'granted') {
+    new Notification(tytul, {
+      body: tresc,
+      icon: '/zegar-192x192.png',
+      vibrate: [200, 100, 200]
     });
   }
-}, 1000);
+}
+
+// Funkcja update odliczania z powiadomieniem
+function update() {
+    odliczania.forEach(e => {
+        const cel = new Date(e.data).getTime();
+        const teraz = Date.now();
+        const diff = cel - teraz;
+        const el = document.getElementById("t" + e.id);
+        if (!el) return;
+
+        if (diff <= 0) {
+            if (!el.dataset.done) {
+                el.innerHTML = tlumaczenia[jezyk].done;
+                pokazCelebration(e.napis);
+
+                // Wywołanie powiadomienia przy zakończeniu odliczania
+                wyswietlPowiadomienie("Odliczanie zakończone!", e.napis);
+
+                el.dataset.done = "tak";
+                setTimeout(() => {
+                    const box = el.closest(".countdown");
+                    if (box) box.remove();
+                    odliczania = odliczania.filter(x => x.id !== e.id);
+                    zapisz();
+                }, 1000);
+            }
+            return;
+        }
+
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+
+        el.innerHTML = ${d}<small>d</small> ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')};
+    });
+}
+
+// Start odliczania – co sekundę
+update();
+setInterval(update, 1000);
+
+// Opcjonalny test powiadomienia po 5 sekundach
+setTimeout(() => {
+  wyswietlPowiadomienie('Test powiadomienia', 'Jeśli to widzisz, powiadomienia działają!');
+}, 5000);
+
+// Rejestracja service workera dla Firebase (push w tle)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    .then(() => console.log('Service Worker zarejestrowany!'))
+    .catch(err => console.error('Błąd rejestracji SW:', err));
+}
 </script>
-<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+
 </html>
+
 
 
 
