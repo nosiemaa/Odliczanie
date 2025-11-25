@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odliczanie</title>
+    <style>
+        body {font-family: 'Segoe UI', sans-serif; background: #0f0c29; color: #fff; margin:0; min-height:100vh; overflow:hidden; position:relative;}
+        
+        .author {
+            position: fixed; top: 18px; left: 20px; font-size: 1.5rem; font-weight: bold; z-index: 1000;
+            background: rgba(88, 101, 242, 0.3); padding: 10px 18px; border-radius: 15px; backdrop-filter: blur(12px);
+            border: 1px solid rgba(88,101,242,0.5);
+        }
+
+        .add-btn {
+            position: fixed; top: 15px; right: 20px; width: 56px; height: 56px; background: #5865f2; color: white;
+            border: none; border-radius: 50%; font-size: 2.4rem; cursor: pointer; z-index: 1000;
+            box-shadow: 0 4px 20px rgba(88,101,242,0.7); transition: all 0.3s;
+        }
+        .add-btn:hover {transform: scale(1.15);}
+
+        .lang-switch {
+            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+            background: rgba(88,101,242,0.3); padding: 10px 16px; border-radius: 30px; backdrop-filter: blur(10px);
+            border: 1px solid rgba(88,101,242,0.5); cursor: pointer; user-select: none;
+        }
+        .lang-switch span {margin: 0 8px; font-weight: bold; opacity: 0.6;}
+        .lang-switch span.active {opacity: 1; text-shadow: 0 0 10px #5865f2;}
+
+        .modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 2000; justify-content: center; align-items: center;}
+        .modal-content {
+            background: #1a1a2e; padding: 35px; border-radius: 22px; width: 90%; max-width: 430px; text-align: center;
+            box-shadow: 0 15px 50px rgba(88,101,242,0.5); border: 2px solid #5865f2;
+        }
+        input {width: 100%; padding: 15px; margin: 12px 0; border-radius: 12px; border: none; background: #2c2c44; color: white; font-size: 1.1rem;}
+        input::placeholder {color: #bbb;}
+        .btn {padding: 14px 28px; margin: 12px 10px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold;}
+        .btn-primary {background: #5865f2; color: white;}
+        .btn-secondary {background: #444; color: white;}
+
+        .countdown-container {padding: 100px 20px 80px; display: flex; flex-wrap: wrap; justify-content: center; gap: 35px;}
+        .countdown {position: relative; background: rgba(255,255,255,0.08); padding: 30px; border-radius: 22px; min-width: 310px; backdrop-filter: blur(14px); border: 1px solid rgba(88,101,242,0.4);}
+        .delete-btn {position: absolute; top: 12px; right: 12px; background: #ff4757; color: white; border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.3rem;}
+        .time {font-size: 3.7rem; font-weight: bold; letter-spacing: 3px;}
+        .celebration {position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 7rem; font-weight: bold; opacity:0; z-index: 999; pointer-events:none; text-shadow: 0 0 40px #5865f2; transition: opacity 0.9s;}
+        canvas {position: fixed; top:0; left:0; pointer-events:none; z-index: 99;}
+    </style>
+</head>
+<body>
+
+    <div class="author">by: no_siemaa</div>
+    <button class="add-btn" onclick="otworzModal()">+</button>
+
+    <!-- Przełącznik języka -->
+    <div class="lang-switch" onclick="zmienJezyk()">
+        <span id="pl" class="active">PL</span> / <span id="en">EN</span>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Nowe odliczanie</h2>
+            <input type="text" id="nazwa" placeholder="Nazwa wydarzenia">
+            <input type="datetime-local" id="data">
+            <input type="text" id="napis" placeholder="Napis po zakończeniu">
+            <div>
+                <!-- NAPRAWIONY PRZYCISK – teraz ma onclick -->
+                <button class="btn btn-primary" onclick="dodaj()">Dodaj</button>
+                <button class="btn btn-secondary" onclick="zamknijModal()">Anuluj</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="countdown-container" id="lista"></div>
+    <div class="celebration" id="msg"></div>
+    <canvas id="confetti"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <script>
+        const STORAGE_KEY = "no_siemaa_odliczania";
+        let odliczania = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        let jezyk = localStorage.getItem("no_siemaa_lang") || "pl";
+
+        const tlumaczenia = {
+            pl: {
+                modalTitle: "Nowe odliczanie",
+                nazwaPlaceholder: "Nazwa wydarzenia (np. Wakacje)",
+                napisPlaceholder: "Napis po zakończeniu (np. JEDZIEMY!)",
+                btnDodaj: "Dodaj",
+                btnAnuluj: "Anuluj",
+                alert: "Wypełnij wszystkie pola!",
+                dni: "Dni", godz: "Godz", min: "Min", sek: "Sek",
+                done: "Już jest!"
+            },
+            en: {
+                modalTitle: "New Countdown",
+                nazwaPlaceholder: "Event name (e.g. Vacation)",
+                napisPlaceholder: "Message when done (e.g. WE'RE GOING!)",
+                btnDodaj: "Add",
+                btnAnuluj: "Cancel",
+                alert: "Fill in all fields!",
+                dni: "Days", godz: "Hrs", min: "Min", sek: "Sec",
+                done: "It's here!"
+            }
+        };
+
+        function ustawJezyk() {
+            const t = tlumaczenia[jezyk];
+            document.getElementById("modal-title").textContent = t.modalTitle;
+            document.getElementById("nazwa").placeholder = t.nazwaPlaceholder;
+            document.getElementById("napis").placeholder = t.napisPlaceholder;
+            document.querySelector(".btn-primary").textContent = t.btnDodaj;
+            document.querySelector(".btn-secondary").textContent = t.btnAnuluj;
+
+            document.getElementById("pl").classList.toggle("active", jezyk === "pl");
+            document.getElementById("en").classList.toggle("active", jezyk === "en");
+
+            renderuj();
+        }
+
+        function zmienJezyk() {
+            jezyk = jezyk === "pl" ? "en" : "pl";
+            localStorage.setItem("no_siemaa_lang", jezyk);
+            ustawJezyk();
+        }
+
+        function otworzModal() { document.getElementById("modal").style.display = "flex"; }
+
+        function zamknijModal() {
+            document.getElementById("modal").style.display = "none";
+            document.getElementById("nazwa").value = "";
+            document.getElementById("data").value = "";
+            document.getElementById("napis").value = "";
+        }
+
+        function dodaj() {
+            const nazwa = document.getElementById("nazwa").value.trim();
+            const data = document.getElementById("data").value;
+            const napis = document.getElementById("napis").value.trim();
+
+            if (!nazwa || !data || !napis) {
+                alert(tlumaczenia[jezyk].alert);
+                return;
+            }
+
+            odliczania.push({
+                id: Date.now() + Math.random(),
+                nazwa,
+                data: data + ":00",
+                napis
+            });
+
+            zapisz();
+            renderuj();
+            zamknijModal();
+        }
+
+        function zapisz() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(odliczania));
+        }
+
+        function usun(id) {
+            odliczania = odliczania.filter(x => x.id !== id);
+            zapisz();
+            renderuj();
+        }
+
+        function renderuj() {
+            const lista = document.getElementById("lista");
+            lista.innerHTML = "";
+            const t = tlumaczenia[jezyk];
+            odliczania.forEach(e => {
+                const div = document.createElement("div");
+                div.className = "countdown";
+                div.innerHTML = `
+                    <button class="delete-btn" onclick="usun(${e.id})">X</button>
+                    <h2>${e.nazwa}</h2>
+                    <div class="time" id="t${e.id}">--:--:--</div>
+                    <div style="display:flex;justify-content:space-around;margin-top:12px;opacity:0.8;font-size:0.95rem;">
+                        <div>${t.dni}</div><div>${t.godz}</div><div>${t.min}</div><div>${t.sek}</div>
+                    </div>
+                `;
+                lista.appendChild(div);
+            });
+        }
+
+        function pokazCelebration(napis) {
+            const msg = document.getElementById("msg");
+            msg.textContent = napis;
+            msg.style.opacity = 1;
+            confetti({particleCount: 300, spread: 100, origin: { y: 0.6 }});
+            setTimeout(() => msg.style.opacity = 0, 3000);
+        }
+
+        function update() {
+            odliczania.forEach(e => {
+                const cel = new Date(e.data).getTime();
+                const teraz = Date.now();
+                const diff = cel - teraz;
+                const el = document.getElementById("t" + e.id);
+                if (!el) return;
+
+                if (diff <= 0) {
+                    if (!el.dataset.done) {
+                        el.innerHTML = tlumaczenia[jezyk].done;
+                        pokazCelebration(e.napis);
+                        el.dataset.done = "tak";
+                        setTimeout(() => {
+                            const box = el.closest(".countdown");
+                            if (box) box.remove();
+                            odliczania = odliczania.filter(x => x.id !== e.id);
+                            zapisz();
+                        }, 1000);
+                    }
+                    return;
+                }
+
+                const d = Math.floor(diff / 86400000);
+                const h = Math.floor((diff % 86400000) / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+
+                el.innerHTML = `${d}<small>d</small> ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            });
+        }
+
+        // Start
+        ustawJezyk();
+        renderuj();
+        update();
+        setInterval(update, 1000);
+    </script>
+</body>
+</html>
