@@ -238,79 +238,92 @@
         setInterval(update, 1000);
     </script>
 </body>
-<!-- Powiadomienia lokalne i odliczanie -->
-<script>
-// Poproś użytkownika o zgodę na powiadomienia
-if ('Notification' in window) {
-  Notification.requestPermission();
-}
+   <script>
+  // Funkcja wyświetlania powiadomień
+  function wyswietlPowiadomienie(tytul, tresc) {
+    if (Notification.permission === 'granted') {
+      new Notification(tytul, {
+        body: tresc,
+        icon: '/zegar-192x192.png',
+        vibrate: [200, 100, 200]
+      });
+    }
+  }
 
-// Funkcja do wyświetlania powiadomień
-function wyswietlPowiadomienie(tytul, tresc) {
-  if (Notification.permission === 'granted') {
-    new Notification(tytul, {
-      body: tresc,
-      icon: '/zegar-192x192.png',
-      vibrate: [200, 100, 200]
+  // Przycisk włączania powiadomień w PWA
+  const btnPowiadomienia = document.createElement('button');
+  btnPowiadomienia.textContent = "Włącz powiadomienia";
+  btnPowiadomienia.style = "position:fixed;bottom:20px;right:20px;padding:12px 18px;background:#5865f2;color:#fff;border:none;border-radius:8px;cursor:pointer;z-index:1000;";
+  document.body.appendChild(btnPowiadomienia);
+
+  btnPowiadomienia.addEventListener('click', () => {
+    if ('Notification' in window) {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          wyswietlPowiadomienie("Powiadomienia włączone!", "Od teraz powiadomienia będą działać w PWA.");
+          btnPowiadomienia.style.display = 'none';
+        } else {
+          alert("Nie przyznano zgody na powiadomienia.");
+        }
+      });
+    }
+  });
+
+  // Funkcja update odliczania z powiadomieniem
+  function update() {
+    odliczania.forEach(e => {
+      const cel = new Date(e.data).getTime();
+      const teraz = Date.now();
+      const diff = cel - teraz;
+      const el = document.getElementById("t" + e.id);
+      if (!el) return;
+
+      if (diff <= 0) {
+        if (!el.dataset.done) {
+          el.innerHTML = tlumaczenia[jezyk].done;
+
+          // Wywołanie powiadomienia przy zakończeniu odliczania
+          wyswietlPowiadomienie("Odliczanie zakończone!", e.napis);
+
+          el.dataset.done = "tak";
+          setTimeout(() => {
+            const box = el.closest(".countdown");
+            if (box) box.remove();
+            odliczania = odliczania.filter(x => x.id !== e.id);
+            zapisz();
+          }, 1000);
+        }
+        return;
+      }
+
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+
+      el.innerHTML = ${d}<small>d</small> ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')};
     });
   }
-}
 
-// Funkcja update odliczania z powiadomieniem
-function update() {
-    odliczania.forEach(e => {
-        const cel = new Date(e.data).getTime();
-        const teraz = Date.now();
-        const diff = cel - teraz;
-        const el = document.getElementById("t" + e.id);
-        if (!el) return;
+  // Start odliczania – co sekundę
+  update();
+  setInterval(update, 1000);
 
-        if (diff <= 0) {
-            if (!el.dataset.done) {
-                el.innerHTML = tlumaczenia[jezyk].done;
-                pokazCelebration(e.napis);
+  // Opcjonalny test powiadomienia po 5 sekundach
+  setTimeout(() => {
+    wyswietlPowiadomienie('Test powiadomienia', 'Jeśli to widzisz, powiadomienia działają!');
+  }, 5000);
 
-                // Wywołanie powiadomienia przy zakończeniu odliczania
-                wyswietlPowiadomienie("Odliczanie zakończone!", e.napis);
-
-                el.dataset.done = "tak";
-                setTimeout(() => {
-                    const box = el.closest(".countdown");
-                    if (box) box.remove();
-                    odliczania = odliczania.filter(x => x.id !== e.id);
-                    zapisz();
-                }, 1000);
-            }
-            return;
-        }
-
-        const d = Math.floor(diff / 86400000);
-        const h = Math.floor((diff % 86400000) / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-
-        el.innerHTML = ${d}<small>d</small> ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')};
-    });
-}
-
-// Start odliczania – co sekundę
-update();
-setInterval(update, 1000);
-
-// Opcjonalny test powiadomienia po 5 sekundach
-setTimeout(() => {
-  wyswietlPowiadomienie('Test powiadomienia', 'Jeśli to widzisz, powiadomienia działają!');
-}, 5000);
-
-// Rejestracja service workera dla Firebase (push w tle)
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/firebase-messaging-sw.js')
-    .then(() => console.log('Service Worker zarejestrowany!'))
-    .catch(err => console.error('Błąd rejestracji SW:', err));
-}
+  // Rejestracja service workera dla Firebase (push w tle)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      .then(() => console.log('Service Worker zarejestrowany!'))
+      .catch(err => console.error('Błąd rejestracji SW:', err));
+  }
 </script>
 
 </html>
+
 
 
 
