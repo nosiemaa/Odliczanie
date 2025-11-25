@@ -238,8 +238,24 @@
         setInterval(update, 1000);
     </script>
 </body>
+    <script>
+setInterval(() => {
+  const now = new Date();
+  if (now >= newYear && now < new Date(newYear.getTime() + 60000)) {
+    Notification.requestPermission().then(perm => {
+      if (perm === "granted") {
+          body: "Twoje odliczanie właśnie się skończyło!",
+          icon: "/zegar-192x192.png",
+          vibrate: [200, 100, 200]
+        });
+      }
+    });
+  }
+}, 1000);
+</script>
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </html>
+
 
 
 
